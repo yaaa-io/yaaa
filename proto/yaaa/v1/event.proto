@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// A stream of the caller's events, in order. Every event has a `seq`; reconnect with
+// `after_seq` and nothing is lost. Cloud Run ends streams after 60 minutes.
+service EventService {
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+  // The same events as a page, for agents that poll. `yaaa events`.
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+}
+
+message Event {
+  int64 seq = 1;
+  // "purchase.updated", "watch.triggered", "watch.matched", "restock.run", "restock.skipped".
+  string type = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Struct payload = 4;
+}
+
+message SubscribeRequest {
+  int64 after_seq = 1;
+  // Empty for all types.
+  repeated string types = 2;
+}
+
+message SubscribeResponse {
+  Event event = 1;
+}
+
+message ListEventsRequest {
+  int64 after_seq = 1;
+  int32 limit = 2;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  int64 last_seq = 2;
+}

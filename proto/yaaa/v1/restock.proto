@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+import "yaaa/v1/common.proto";
+
+// Restocks: each run is quoted 24 hours before it's due and sends a confirm link. A run
+// that is over max, out of stock, or not confirmed by its due time is skipped.
+service RestockService {
+  rpc CreateRestock(CreateRestockRequest) returns (CreateRestockResponse);
+  rpc ListRestocks(ListRestocksRequest) returns (ListRestocksResponse);
+  rpc PauseRestock(PauseRestockRequest) returns (PauseRestockResponse);
+  rpc ResumeRestock(ResumeRestockRequest) returns (ResumeRestockResponse);
+  rpc SkipNextRun(SkipNextRunRequest) returns (SkipNextRunResponse);
+  rpc CancelRestock(CancelRestockRequest) returns (CancelRestockResponse);
+}
+
+enum RestockStatus {
+  RESTOCK_STATUS_UNSPECIFIED = 0;
+  RESTOCK_STATUS_ACTIVE = 1;
+  RESTOCK_STATUS_PAUSED = 2;
+  RESTOCK_STATUS_CANCELLED = 3;
+}
+
+message Cadence {
+  oneof kind {
+    // Every N days.
+    int32 every_days = 1;
+    // On this day of every month (1 to 28).
+    int32 monthly_day = 2;
+  }
+}
+
+message Restock {
+  // "rst_..."
+  string restock_id = 1;
+  RestockStatus status = 2;
+  Product product = 3;
+  Variant variant = 4;
+  int32 quantity = 5;
+  Cadence cadence = 6;
+  Money max = 7;
+  google.protobuf.Timestamp next_run_at = 8;
+  // When the next run is quoted and its confirm link sent: next_run_at minus 24 hours.
+  google.protobuf.Timestamp next_quote_at = 9;
+  bool skip_next = 10;
+  // The purchase for the current run, if a confirm link is out.
+  string purchase_id = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+message CreateRestockRequest {
+  string idempotency_key = 1;
+  oneof product {
+    string product_id = 2;
+    string url = 3;
+    string query = 4;
+  }
+  string variant = 5;
+  int32 quantity = 6;
+  Cadence cadence = 7;
+  Money max = 8;
+}
+
+message CreateRestockResponse {
+  Restock restock = 1;
+}
+
+message ListRestocksRequest {
+  bool include_cancelled = 1;
+}
+
+message ListRestocksResponse {
+  repeated Restock restocks = 1;
+}
+
+message PauseRestockRequest {
+  string idempotency_key = 1;
+  string restock_id = 2;
+}
+
+message PauseRestockResponse {
+  Restock restock = 1;
+}
+
+message ResumeRestockRequest {
+  string idempotency_key = 1;
+  string restock_id = 2;
+}
+
+message ResumeRestockResponse {
+  Restock restock = 1;
+}
+
+message SkipNextRunRequest {
+  string idempotency_key = 1;
+  string restock_id = 2;
+}
+
+message SkipNextRunResponse {
+  Restock restock = 1;
+}
+
+message CancelRestockRequest {
+  string idempotency_key = 1;
+  string restock_id = 2;
+}
+
+message CancelRestockResponse {
+  Restock restock = 1;
+}

@@ -1,0 +1,25 @@
+# We're not accepting pull requests yet (see CONTRIBUTING.md). This closes one from outside the yaaa-io organization,
+# politely. It never checks out or runs the pull request's code, so pull_request_target is safe here.
+name: pull requests
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  close:
+    if: >-
+      github.event.pull_request.author_association != 'OWNER' &&
+      github.event.pull_request.author_association != 'MEMBER' &&
+      github.event.pull_request.author_association != 'COLLABORATOR'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close with a note
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr close "$PR" --repo "$GITHUB_REPOSITORY" --comment "Thanks for this! We're not accepting pull requests yet, while we decide how contributions are licensed, and this repo is a mirror that's updated with each release. Please open an issue describing the change instead: https://github.com/$GITHUB_REPOSITORY/issues. See CONTRIBUTING.md."

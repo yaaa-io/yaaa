@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "yaaa/v1/common.proto";
+
+// Attached to every non-OK gRPC status (in grpc-status-details-bin) so clients can
+// branch on a stable code instead of parsing messages. The CLI maps each reason to a
+// fixed exit code: see cli/packages/cli/src/exit.ts.
+message ErrorDetail {
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+    // Exit 2.
+    REASON_INVALID_ARGUMENT = 1;
+    // Exit 3.
+    REASON_UNAUTHENTICATED = 2;
+    // Exit 4: the request would go over the buyer's spending limits.
+    REASON_LIMIT_EXCEEDED = 3;
+    // Exit 5.
+    REASON_CONFLICT = 4;
+    REASON_IDEMPOTENCY_KEY_REUSED = 5;
+    // Exit 6.
+    REASON_NOT_FOUND = 6;
+    // Exit 10: safe to retry with the same idempotency key.
+    REASON_UNAVAILABLE = 7;
+    REASON_RATE_LIMITED = 8;
+    // Exit 5: the store can't be bought from (blocked, paused, or no usable checkout).
+    REASON_STORE_UNSUPPORTED = 9;
+    // Exit 5: out of stock or the price moved past the buyer's max.
+    REASON_PRICE_OR_STOCK_CHANGED = 10;
+    // Exit 5: this yaaa is older than the API supports (metadata: version, min_version). Update yaaa.
+    REASON_CLIENT_OUTDATED = 11;
+  }
+  Reason reason = 1;
+  string message = 2;
+  // Extra machine-readable context, for example {"limit": "400.00", "amount": "412.10"}.
+  map<string, string> metadata = 3;
+  // With REASON_STORE_UNSUPPORTED: similar products at stores yaaa can buy from, best match first. Up to 3.
+  repeated Product alternatives = 4;
+}

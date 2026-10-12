@@ -1,0 +1,24 @@
+name: Bug
+description: Something in yaaa doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `yaaa doctor`
+      description: Remove anything personal first. Never paste your recovery key, tokens, or confirm links.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Your agent, if one was involved
+      placeholder: Claude Code, Hermes, Codex, …

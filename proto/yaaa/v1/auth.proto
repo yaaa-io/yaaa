@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Phase 1 accounts are anonymous: `yaaa init` creates one with no sign-up. Linking a
+// Shop account is optional and only adds saved preferences and member discounts.
+service AuthService {
+  // Creates an anonymous account and a device session. Called by `yaaa init`.
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+  // Trades a refresh token for a new access token and a rotated refresh token.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  // Starts linking a Shop account (RFC 8628 device flow on /device). `yaaa shop link`.
+  rpc StartShopLink(StartShopLinkRequest) returns (StartShopLinkResponse);
+  rpc PollShopLink(PollShopLinkRequest) returns (PollShopLinkResponse);
+  // A one-time link that signs a browser into this account (the web desk). `yaaa desk`, and `yaaa login` to add a passkey.
+  rpc CreateDeskLink(CreateDeskLinkRequest) returns (CreateDeskLinkResponse);
+  // Makes the account's recovery key and returns it once; only its hash is kept. `yaaa init` and `yaaa recovery-key`,
+  // on a terminal. Replacing an existing key needs the current one (or a passkey, on the web desk).
+  rpc CreateRecoveryKey(CreateRecoveryKeyRequest) returns (CreateRecoveryKeyResponse);
+  // Signs this device into the account a recovery key belongs to. `yaaa init --restore <key>`. No sign-in needed.
+  rpc RestoreAccount(RestoreAccountRequest) returns (RestoreAccountResponse);
+  // Signs this terminal in with a passkey: the person opens `verification_url` and approves with a passkey, while the
+  // terminal polls. `yaaa init --passkey`. No sign-in needed.
+  rpc StartPasskeySignIn(StartPasskeySignInRequest) returns (StartPasskeySignInResponse);
+  rpc PollPasskeySignIn(PollPasskeySignInRequest) returns (PollPasskeySignInResponse);
+  // Revokes this device's refresh token. `yaaa logout`.
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+}
+
+message Account {
+  // "acct_..."
+  string account_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  // Empty unless a Shop account is linked.
+  string shop_email = 3;
+  // "free" or "paid".
+  string plan = 4;
+  // Whether a recovery key is set (the key itself is never returned again).
+  bool has_recovery_key = 5;
+}
+
+message CreateRecoveryKeyRequest {
+  // Replace an existing key, which then stops working. Without it, an account that has a key gets CONFLICT.
+  bool replace = 1;
+  // With replace: the account's current recovery key, as proof. Without it (or a passkey on the web desk), replacing
+  // gets CONFLICT with metadata proof=required. The person types it; agents never pass it.
+  string current_recovery_key = 2;
+}
+
+message CreateRecoveryKeyResponse {
+  // Shown once. Give it to the person to keep in a password manager; don't store or repeat it.
+  string recovery_key = 1;
+}
+
+message RestoreAccountRequest {
+  string recovery_key = 1;
+  // Shown in `yaaa doctor` and on the web desk.
+  string device_name = 2;
+}
+
+message RestoreAccountResponse {
+  Account account = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  google.protobuf.Timestamp access_token_expires_at = 4;
+}
+
+message StartPasskeySignInRequest {
+  // Shown on the approval page and on the web desk.
+  string device_name = 1;
+}
+
+message StartPasskeySignInResponse {
+  // Secret: only the terminal polls with it.
+  string device_code = 1;
+  // "WDJB-MJHT": shown in the terminal, to match against the page.
+  string user_code = 2;
+  // The page to approve on. The person types `user_code` there; it isn't in the link.
+  string verification_url = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  int32 interval_seconds = 5;
+}
+
+message PollPasskeySignInRequest {
+  string device_code = 1;
+}
+
+message PollPasskeySignInResponse {
+  // "pending", "approved", "denied", or "expired". The session fields are set only when "approved", and only once.
+  string status = 1;
+  Account account = 2;
+  string access_token = 3;
+  string refresh_token = 4;
+  google.protobuf.Timestamp access_token_expires_at = 5;
+}
+
+message CreateAccountRequest {
+  string idempotency_key = 1;
+  // Shown in `yaaa doctor` and on the web desk.
+  string device_name = 2;
+}
+
+message CreateAccountResponse {
+  Account account = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  google.protobuf.Timestamp access_token_expires_at = 4;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  google.protobuf.Timestamp access_token_expires_at = 3;
+}
+
+message StartShopLinkRequest {
+  string idempotency_key = 1;
+}
+
+message StartShopLinkResponse {
+  // What the person opens, for example "https://yaaa.io/device".
+  string verification_uri = 1;
+  // The same page with the code filled in.
+  string verification_uri_complete = 2;
+  // What the person types, for example "WDJB-MJHT".
+  string user_code = 3;
+  // Passed to PollShopLink. Never shown.
+  string device_code = 4;
+  int32 interval_seconds = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message PollShopLinkRequest {
+  string device_code = 1;
+}
+
+message PollShopLinkResponse {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_PENDING = 1;
+    STATUS_LINKED = 2;
+    STATUS_DENIED = 3;
+    STATUS_EXPIRED = 4;
+  }
+  Status status = 1;
+  Account account = 2;
+}
+
+message CreateDeskLinkRequest {}
+
+message CreateDeskLinkResponse {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message LogoutResponse {}
+
+message GetAccountRequest {}
+
+message GetAccountResponse {
+  Account account = 1;
+}

@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+import "yaaa/v1/common.proto";
+
+// Spending limits and alerts for the signed-in buyer.
+service AccountService {
+  // `yaaa config limits`.
+  rpc GetLimits(GetLimitsRequest) returns (GetLimitsResponse);
+  rpc SetLimits(SetLimitsRequest) returns (SetLimitsResponse);
+  // Alerts newer than a cursor, oldest first. The desktop notifier and `yaaa alerts` use it;
+  // the same list is served as JSON at GET /v1/alerts.
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse);
+  // Where email alerts go (the fallback channel). Optional.
+  rpc SetAlertEmail(SetAlertEmailRequest) returns (SetAlertEmailResponse);
+  // Where Discord alerts go: a channel's webhook URL. yaaa posts a welcome message to check it. Optional.
+  rpc SetAlertDiscord(SetAlertDiscordRequest) returns (SetAlertDiscordResponse);
+  // Which of email and Discord are on (`yaaa notify status`), so an agent can ask how the buyer wants alerts.
+  rpc GetAlertChannels(GetAlertChannelsRequest) returns (GetAlertChannelsResponse);
+}
+
+message Limits {
+  // Most a single purchase may total, with tax and shipping.
+  Money per_purchase = 1;
+  // Most all purchases may total in a calendar month (UTC), counting open confirm links.
+  Money monthly = 2;
+  // Already used this month.
+  Money monthly_used = 3;
+}
+
+message GetLimitsRequest {}
+
+message GetLimitsResponse {
+  Limits limits = 1;
+}
+
+message SetLimitsRequest {
+  string idempotency_key = 1;
+  Money per_purchase = 2;
+  Money monthly = 3;
+}
+
+message SetLimitsResponse {
+  Limits limits = 1;
+}
+
+message Alert {
+  // "alr_..."
+  string alert_id = 1;
+  // "watch.triggered", "watch.matched", "restock.run", "restock.skipped", "purchase.expiring".
+  string kind = 2;
+  string title = 3;
+  string body = 4;
+  // Empty for alerts with nothing to confirm (a skipped run).
+  string confirm_url = 5;
+  string purchase_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  // Set once the confirm link was opened anywhere, or the alert expired.
+  google.protobuf.Timestamp done_at = 9;
+  // Pass back as `after` to get only newer alerts.
+  string cursor = 10;
+  // The product's image, for channels that show one. Show it only beside this product, fetched when shown; don't
+  // store it (Shopify catalog terms). Empty when there's no product (a skipped restock run, for example).
+  string image_url = 11;
+  // What the alert is about when that isn't a purchase: for "watch.matched", the filter watch ("fwt_...") whose new
+  // matches it lists (see WatchService.GetFilterWatchMatches).
+  string ref = 12;
+}
+
+message ListAlertsRequest {
+  string after = 1;
+  bool include_done = 2;
+  int32 limit = 3;
+}
+
+message ListAlertsResponse {
+  repeated Alert alerts = 1;
+  string cursor = 2;
+}
+
+message SetAlertEmailRequest {
+  string idempotency_key = 1;
+  // Empty turns email alerts off.
+  string email = 2;
+}
+
+message SetAlertEmailResponse {
+  // "confirmation_sent": a link went to the address, and alerts move there once it's clicked (until then they go
+  // where they did). "already_on": alerts already go there. "off": email alerts are off.
+  string status = 1;
+}
+
+message SetAlertDiscordRequest {
+  string idempotency_key = 1;
+  // A Discord webhook URL (https://discord.com/api/webhooks/...). Empty turns Discord alerts off.
+  string webhook_url = 2;
+}
+
+message SetAlertDiscordResponse {
+  // The webhook now in use with its token hidden; empty when Discord alerts are off.
+  string webhook = 1;
+}
+
+message GetAlertChannelsRequest {}
+
+message GetAlertChannelsResponse {
+  // The confirmed address email alerts go to; empty when email alerts are off.
+  string email = 1;
+  // An address waiting on its confirmation link (alerts move there once it's clicked); empty when none.
+  string pending_email = 2;
+  // The Discord webhook in use with its token hidden; empty when Discord alerts are off.
+  string discord = 3;
+}

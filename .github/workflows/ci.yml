@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  contract:
+    name: proto (buf lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-action@v1
+        with:
+          lint: true
+          format: false
+          breaking: false
+          pr_comment: false
+          push: false
+
+  cli:
+    name: cli (typecheck, test, build, installer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: cli/pnpm-lock.yaml
+      - working-directory: cli
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm typecheck
+          pnpm test
+      - name: Smoke test the built CLI
+        working-directory: cli
+        run: node packages/cli/dist/main.js --version && node packages/cli/dist/main.js --help >/dev/null
+      # Signed with a throwaway dev key (releases are signed; a build without a key is refused); `yaaa update --to` then
+      # reinstalls through the signed-manifest check in Node.
+      - name: Installer (curl | sh from a local server, then run yaaa without Node on the PATH, then yaaa update)
+        working-directory: cli
+        run: |
+          node release/build.mjs --dev-key --base-url http://localhost:7090 --platforms linux-x64
+          python3 -m http.server 7090 --directory ../dist/release >/dev/null 2>&1 &
+          sleep 1
+          curl -fsSL http://localhost:7090/install | YAAA_INSTALL_DIR=$RUNNER_TEMP/yaaa YAAA_BIN_DIR=$RUNNER_TEMP/bin YAAA_NO_MODIFY_PATH=1 sh
+          env -i HOME=$RUNNER_TEMP PATH=/usr/bin:/bin $RUNNER_TEMP/bin/yaaa --version
+          env -i HOME=$RUNNER_TEMP PATH=/usr/bin:/bin $RUNNER_TEMP/bin/yaaa --help >/dev/null
+          v=$(cat ../dist/release/releases/latest)
+          env -i HOME=$RUNNER_TEMP PATH=/usr/bin:/bin $RUNNER_TEMP/bin/yaaa update --to "$v" --json

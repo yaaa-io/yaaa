@@ -1,0 +1,11 @@
+name: Idea
+description: Something yaaa could do, or do better
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like yaaa to do
+      description: What you're trying to get done, and how yaaa could help.
+    validations:
+      required: true

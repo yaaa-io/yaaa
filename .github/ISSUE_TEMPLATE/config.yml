@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Help and discussion
+    url: https://discord.gg/RzukGnVBRA
+    about: Questions and ideas in the YAAA Discord
+  - name: Docs
+    url: https://yaaa.io/docs/
+    about: Installing yaaa, buying, watches, alerts, and troubleshooting
+  - name: Security issue
+    url: https://github.com/yaaa-io/yaaa/blob/main/SECURITY.md
+    about: Report security issues privately to support@nxis.ai, not here

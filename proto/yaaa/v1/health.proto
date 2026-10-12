@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Liveness and readiness of yaaa-api. `yaaa doctor` calls Check.
+service HealthService {
+  rpc Check(CheckRequest) returns (CheckResponse);
+}
+
+message CheckRequest {}
+
+message CheckResponse {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_SERVING = 1;
+    STATUS_DEGRADED = 2;
+  }
+  Status status = 1;
+  // Build version of the running API, for example "0.1.0+3f2a9c1".
+  string version = 2;
+  // "local", "dev", or "prod".
+  string environment = 3;
+  // Server time, from the API's Clock (moves with the dev clock locally).
+  google.protobuf.Timestamp now = 4;
+  // One entry per dependency the API checked, for example "database".
+  repeated DependencyHealth dependencies = 5;
+  // The oldest CLI version the API serves; empty when any is. Older CLIs get REASON_CLIENT_OUTDATED.
+  string min_cli_version = 6;
+}
+
+message DependencyHealth {
+  string name = 1;
+  bool ok = 2;
+  string detail = 3;
+  int64 latency_ms = 4;
+}

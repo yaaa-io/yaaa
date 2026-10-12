@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+// An amount of money. `amount` is a decimal string with two places ("103.43"),
+// so agents read it without float rounding.
+message Money {
+  string amount = 1;
+  // ISO 4217, for example "USD".
+  string currency_code = 2;
+}
+
+// How far yaaa can go with a store. See "Stores beyond Shopify" in the architecture doc.
+enum StoreLevel {
+  STORE_LEVEL_UNSPECIFIED = 0;
+  // A UCP checkout yaaa has opened successfully: buy now, watches, and restocks with confirm links.
+  STORE_LEVEL_CHECKOUT = 1;
+  // Product data an agent can read but no usable checkout: watches and restocks hand off to the product page.
+  STORE_LEVEL_CATALOG = 2;
+  // Neither. yaaa records the request as demand.
+  STORE_LEVEL_UNSUPPORTED = 3;
+}
+
+message Store {
+  string domain = 1;
+  string name = 2;
+  StoreLevel level = 3;
+  // "shopify", "woocommerce", ... or "unknown".
+  string platform = 4;
+}
+
+message Variant {
+  string variant_id = 1;
+  // "Black", "10.5", "2 lb".
+  string title = 2;
+  Money price = 3;
+  bool available = 4;
+}
+
+message Product {
+  // yaaa's id, for example "prd_7Kq2mX".
+  string product_id = 1;
+  string title = 2;
+  string brand = 3;
+  Store store = 4;
+  string url = 5;
+  repeated Variant variants = 6;
+  // Lowest available variant price.
+  Money price = 7;
+  bool available = 8;
+  string image_url = 9;
+  // From the catalog, when it has them.
+  Rating rating = 10;
+  string description = 11;
+  // Key features and selling points, a few short lines.
+  repeated string features = 12;
+  // Other stores selling the same product, cheapest first.
+  repeated StoreOffer other_stores = 13;
+}
+
+message Rating {
+  // Average, out of 5.
+  double value = 1;
+  int64 count = 2;
+}
+
+// The same product at another store.
+message StoreOffer {
+  string product_id = 1;
+  Store store = 2;
+  Money price = 3;
+  bool available = 4;
+  string url = 5;
+}

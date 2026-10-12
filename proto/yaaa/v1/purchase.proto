@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+import "yaaa/v1/common.proto";
+
+// Phase 1 purchases end with a confirm link. Opening it re-checks price and stock,
+// builds the store's UCP checkout, and redirects the buyer there to pay the store.
+// yaaa never charges a card and never completes the checkout itself.
+service PurchaseService {
+  // Quotes within the buyer's limits and returns a confirm link. `yaaa buy`.
+  rpc BuyNow(BuyNowRequest) returns (BuyNowResponse);
+  rpc GetPurchase(GetPurchaseRequest) returns (GetPurchaseResponse);
+  rpc ListPurchases(ListPurchasesRequest) returns (ListPurchasesResponse);
+  // Withdraws a confirm link that hasn't been used.
+  rpc CancelPurchase(CancelPurchaseRequest) returns (CancelPurchaseResponse);
+  // Everything in flight: purchases, watches, and restocks. `yaaa status`.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+}
+
+enum PurchaseStatus {
+  PURCHASE_STATUS_UNSPECIFIED = 0;
+  // Quoted, confirm link issued, waiting for the buyer.
+  PURCHASE_STATUS_AWAITING_CONFIRMATION = 1;
+  // The buyer placed the order at the store's checkout.
+  PURCHASE_STATUS_CONFIRMED = 2;
+  PURCHASE_STATUS_SHIPPED = 3;
+  PURCHASE_STATUS_DELIVERED = 4;
+  // The link was withdrawn, or the store cancelled the order.
+  PURCHASE_STATUS_CANCELLED = 5;
+  // The link ran out before the buyer confirmed.
+  PURCHASE_STATUS_EXPIRED = 6;
+}
+
+enum PurchaseTrigger {
+  PURCHASE_TRIGGER_UNSPECIFIED = 0;
+  PURCHASE_TRIGGER_NOW = 1;
+  PURCHASE_TRIGGER_PRICE_WATCH = 2;
+  PURCHASE_TRIGGER_RESTOCK = 3;
+}
+
+message Quote {
+  Money item = 1;
+  Money tax = 2;
+  Money shipping = 3;
+  Money total = 4;
+  // The buyer's max for this purchase, if they gave one.
+  Money max = 5;
+  int32 quantity = 6;
+  // True when tax and shipping weren't quoted (tax and shipping are zero here): the store's checkout was busy for
+  // agents, so the confirm link goes to the buyer's cart at the store, which shows them. Tell the buyer.
+  bool estimated = 7;
+}
+
+message Purchase {
+  // "pur_..."
+  string purchase_id = 1;
+  PurchaseStatus status = 2;
+  PurchaseTrigger trigger = 3;
+  Product product = 4;
+  Variant variant = 5;
+  Quote quote = 6;
+  // "https://yaaa.io/c/K7Q2". Empty once the purchase leaves AWAITING_CONFIRMATION.
+  string confirm_url = 7;
+  google.protobuf.Timestamp confirm_expires_at = 8;
+  // When the buyer first opened the confirm link.
+  google.protobuf.Timestamp opened_at = 9;
+  string order_number = 10;
+  string carrier = 11;
+  string tracking_number = 12;
+  // The watch or restock that created it.
+  string source_id = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+message BuyNowRequest {
+  string idempotency_key = 1;
+  // A yaaa product id, a product page URL, or a query.
+  oneof product {
+    string product_id = 2;
+    string url = 3;
+    string query = 4;
+  }
+  // A variant id, or a variant title to match ("black", "10.5").
+  string variant = 5;
+  int32 quantity = 6;
+  // Optional: refuse if the total would be higher.
+  Money max = 7;
+}
+
+message BuyNowResponse {
+  Purchase purchase = 1;
+}
+
+message GetPurchaseRequest {
+  string purchase_id = 1;
+}
+
+message GetPurchaseResponse {
+  Purchase purchase = 1;
+}
+
+message ListPurchasesRequest {
+  // Empty for all.
+  repeated PurchaseStatus statuses = 1;
+  int32 limit = 2;
+}
+
+message ListPurchasesResponse {
+  repeated Purchase purchases = 1;
+}
+
+message CancelPurchaseRequest {
+  string idempotency_key = 1;
+  string purchase_id = 2;
+}
+
+message CancelPurchaseResponse {
+  Purchase purchase = 1;
+}
+
+message GetStatusRequest {}
+
+message StatusItem {
+  // "purchase", "price_watch", "filter_watch", or "restock".
+  string kind = 1;
+  // pur_, wch_, fwt_, or rst_ id.
+  string id = 2;
+  string title = 3;
+  // A short human summary, for example "shipped · UPS" or "next run Dec 1".
+  string summary = 4;
+  // The underlying status in lower snake case, for example "awaiting_confirmation".
+  string status = 5;
+  string confirm_url = 6;
+  bool needs_attention = 7;
+}
+
+message GetStatusResponse {
+  repeated StatusItem items = 1;
+}

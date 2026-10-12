@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+cli/packages/client/src/gen/
+.env*
+# `release/build.mjs --dev-key` keeps its local signing key here
+.dev/
+.DS_Store

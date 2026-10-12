@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// Local development only. Every RPC returns PERMISSION_DENIED unless the API runs with
+// ENVIRONMENT=local.
+service DevService {
+  // `yaaa dev clock`.
+  rpc GetClock(GetClockRequest) returns (GetClockResponse);
+  // Moves the API's clock forward and runs every task that came due, in order.
+  rpc AdvanceClock(AdvanceClockRequest) returns (AdvanceClockResponse);
+  // Truncates every table and re-seeds. `yaaa dev reset`.
+  rpc Reset(ResetRequest) returns (ResetResponse);
+  // Changes a fake-store product's price or stock, to fire watches.
+  rpc SetFakeProduct(SetFakeProductRequest) returns (SetFakeProductResponse);
+  // Completes a confirm link's checkout as if the buyer paid in the browser.
+  rpc CompleteFakeCheckout(CompleteFakeCheckoutRequest) returns (CompleteFakeCheckoutResponse);
+}
+
+message GetClockRequest {}
+
+message GetClockResponse {
+  google.protobuf.Timestamp now = 1;
+  google.protobuf.Duration offset = 2;
+}
+
+message AdvanceClockRequest {
+  google.protobuf.Duration by = 1;
+}
+
+message AdvanceClockResponse {
+  google.protobuf.Timestamp now = 1;
+  // Tasks that ran, for example "price-check prd_2Fx".
+  repeated string ran = 2;
+}
+
+message ResetRequest {}
+
+message ResetResponse {}
+
+message SetFakeProductRequest {
+  string handle = 1;
+  string variant_title = 2;
+  // Decimal string; empty leaves the price alone.
+  string price = 3;
+  // Ignored unless set_available is true.
+  bool available = 4;
+  bool set_available = 5;
+}
+
+message SetFakeProductResponse {}
+
+message CompleteFakeCheckoutRequest {
+  string purchase_id = 1;
+}
+
+message CompleteFakeCheckoutResponse {
+  string order_number = 1;
+}

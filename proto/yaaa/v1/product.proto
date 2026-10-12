@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "yaaa/v1/common.proto";
+
+service ProductService {
+  // Searches stores that sell to agents by name, brand, or keywords. `yaaa products search`.
+  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
+  // One product by yaaa id, by product page URL, or by the best match for a query.
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+  // Products like this one (Shopify's catalog similarity), at stores yaaa can read.
+  rpc SimilarProducts(SimilarProductsRequest) returns (SimilarProductsResponse);
+}
+
+message SearchProductsRequest {
+  string query = 1;
+  // Optional: only this store, for example "odastudio.co". Leave empty to search every store.
+  string store_domain = 2;
+  int32 limit = 3;
+  // Optional price range, compared with each product's lowest price.
+  Money min_price = 4;
+  Money max_price = 5;
+  // Optional: only products rated at least this (0 to 5); unrated products are left out.
+  double min_rating = 6;
+  // Only products with a variant in stock.
+  bool in_stock = 7;
+  // ISO country the products must ship to; defaults to "US".
+  string ships_to = 8;
+  // Cheapest first, and the cheapest store first when several sell the same product.
+  bool cheapest = 9;
+  // Optional attribute filters (Shopify's catalog infers these): a size like "10" or "M", a color like "black",
+  // "women", "men", or "unisex", and "new" or "secondhand".
+  string size = 10;
+  string color = 11;
+  string gender = 12;
+  string condition = 13;
+  // Optional: only products with at least this many reviews.
+  int32 min_reviews = 14;
+  // The next page: SearchProductsResponse.next_cursor from the previous page.
+  string cursor = 15;
+}
+
+message SearchProductsResponse {
+  // Each product appears once, at the store to show first; Product.other_stores lists the others selling it.
+  // With no store or price criteria the brand's own store comes first; with price criteria, the lowest price.
+  repeated Product products = 1;
+  // Pass as SearchProductsRequest.cursor for the next page; empty when this is the last.
+  string next_cursor = 2;
+}
+
+message SimilarProductsRequest {
+  oneof ref {
+    string product_id = 1;
+    string url = 2;
+    string query = 3;
+  }
+  int32 limit = 4;
+  Money max_price = 5;
+  double min_rating = 6;
+}
+
+message SimilarProductsResponse {
+  repeated Product products = 1;
+}
+
+message GetProductRequest {
+  oneof ref {
+    string product_id = 1;
+    string url = 2;
+    string query = 3;
+  }
+}
+
+message GetProductResponse {
+  Product product = 1;
+}

@@ -1,0 +1,1 @@
+Thanks for this. We're not accepting pull requests yet, while we decide how contributions are licensed, so this pull request will be closed. Please open an issue describing the change instead: https://github.com/yaaa-io/yaaa/issues. See CONTRIBUTING.md.

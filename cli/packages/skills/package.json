@@ -1,0 +1,7 @@
+{
+  "name": "@yaaa/skills",
+  "license": "Apache-2.0",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SKILL.md files that `yaaa init` installs into terminal agents. The CLI build copies them into packages/cli/skills."
+}

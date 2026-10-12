@@ -1,0 +1,220 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+import "yaaa/v1/common.proto";
+
+// Price watches: yaaa checks the catalog on a schedule and sends a confirm link when the
+// product is in stock at or below the target. The link lasts 24 hours or until the price rises.
+service WatchService {
+  rpc CreatePriceWatch(CreatePriceWatchRequest) returns (CreatePriceWatchResponse);
+  rpc ListPriceWatches(ListPriceWatchesRequest) returns (ListPriceWatchesResponse);
+  rpc CancelPriceWatch(CancelPriceWatchRequest) returns (CancelPriceWatchResponse);
+
+  // Filter watches: a saved search (the same words and filters as SearchProducts) re-run across stores every 6 hours.
+  // An alert ("watch.matched") lists what's new: products the watch hasn't seen, ones at least 5% or $5 cheaper,
+  // or ones back in stock. Nothing is quoted until the buyer picks one (BuyNow).
+  rpc CreateFilterWatch(CreateFilterWatchRequest) returns (CreateFilterWatchResponse);
+  rpc ListFilterWatches(ListFilterWatchesRequest) returns (ListFilterWatchesResponse);
+  rpc GetFilterWatchMatches(GetFilterWatchMatchesRequest) returns (GetFilterWatchMatchesResponse);
+  rpc DismissFilterMatch(DismissFilterMatchRequest) returns (DismissFilterMatchResponse);
+  rpc CancelFilterWatch(CancelFilterWatchRequest) returns (CancelFilterWatchResponse);
+}
+
+enum WatchStatus {
+  WATCH_STATUS_UNSPECIFIED = 0;
+  WATCH_STATUS_ACTIVE = 1;
+  // A confirm link is out.
+  WATCH_STATUS_TRIGGERED = 2;
+  // The buyer bought it.
+  WATCH_STATUS_COMPLETED = 3;
+  WATCH_STATUS_CANCELLED = 4;
+  WATCH_STATUS_ENDED = 5;
+}
+
+message PriceWatch {
+  // "wch_..."
+  string watch_id = 1;
+  WatchStatus status = 2;
+  Product product = 3;
+  // Empty means any variant.
+  Variant variant = 4;
+  Money target = 5;
+  Money current_price = 6;
+  int32 check_interval_minutes = 7;
+  google.protobuf.Timestamp ends_at = 8;
+  google.protobuf.Timestamp last_checked_at = 9;
+  // Set while TRIGGERED.
+  string purchase_id = 10;
+  string confirm_url = 11;
+  google.protobuf.Timestamp created_at = 12;
+  // What the product has cost while watched, when price history is on for this server; empty otherwise.
+  PriceHistory price_history = 13;
+}
+
+// A watched product's prices over the last 90 days, from the daily lows and highs yaaa's watch checks saw. Only for
+// products the buyer is watching; the current price is always fetched live.
+message PriceHistory {
+  // Days with data in the last 90; below 14 the verdict is "not_enough_data".
+  int32 days = 1;
+  // The first day with data (YYYY-MM-DD).
+  string since = 2;
+  Money low_30 = 3;
+  Money low_90 = 4;
+  Money high_90 = 5;
+  // The median of the daily lows: what it usually costs.
+  Money usual = 6;
+  // The current price against the history: "great" (at or below the 90-day low), "good" (within 5% of it),
+  // "typical" (around the usual price), "high", or "not_enough_data".
+  string verdict = 7;
+}
+
+message CreatePriceWatchRequest {
+  string idempotency_key = 1;
+  oneof product {
+    string product_id = 2;
+    string url = 3;
+    string query = 4;
+  }
+  string variant = 5;
+  // Alert when the price is at or below this.
+  Money below = 6;
+  // Defaults to 90 days from now.
+  google.protobuf.Timestamp until = 7;
+}
+
+message CreatePriceWatchResponse {
+  PriceWatch watch = 1;
+}
+
+message ListPriceWatchesRequest {
+  bool include_inactive = 1;
+}
+
+message ListPriceWatchesResponse {
+  repeated PriceWatch watches = 1;
+}
+
+message CancelPriceWatchRequest {
+  string idempotency_key = 1;
+  string watch_id = 2;
+}
+
+message CancelPriceWatchResponse {
+  PriceWatch watch = 1;
+}
+
+enum FilterWatchStatus {
+  FILTER_WATCH_STATUS_UNSPECIFIED = 0;
+  FILTER_WATCH_STATUS_ACTIVE = 1;
+  FILTER_WATCH_STATUS_ENDED = 2;
+  FILTER_WATCH_STATUS_CANCELLED = 3;
+}
+
+message FilterWatch {
+  // "fwt_..."
+  string watch_id = 1;
+  FilterWatchStatus status = 2;
+  string query = 3;
+  // Empty: every store.
+  string store_domain = 4;
+  Money min_price = 5;
+  Money max_price = 6;
+  // 0: no minimum.
+  double min_rating = 7;
+  bool in_stock = 8;
+  string ships_to = 9;
+  int32 check_interval_minutes = 10;
+  google.protobuf.Timestamp ends_at = 11;
+  google.protobuf.Timestamp last_checked_at = 12;
+  google.protobuf.Timestamp created_at = 13;
+  // Products found and not dismissed, and the cheapest of them.
+  int32 match_count = 14;
+  Money best_price = 15;
+  // "trail running shoes · under $120.00 · rated 4.0+"
+  string description = 16;
+  string size = 17;
+  string color = 18;
+  string gender = 19;
+  string condition = 20;
+  int32 min_reviews = 21;
+}
+
+message FilterMatch {
+  // The product at the store selling it cheapest; buy it with BuyNow (product_id).
+  Product product = 1;
+  Money first_price = 2;
+  // The price the buyer was last told about. Empty when the watch found it on its first check.
+  Money alerted_price = 3;
+  Money last_price = 4;
+  google.protobuf.Timestamp first_seen = 5;
+  google.protobuf.Timestamp last_seen = 6;
+  // What the product has cost while watched, when price history is on; empty otherwise.
+  PriceHistory price_history = 7;
+}
+
+message CreateFilterWatchRequest {
+  string idempotency_key = 1;
+  string query = 2;
+  string store_domain = 3;
+  Money min_price = 4;
+  Money max_price = 5;
+  double min_rating = 6;
+  bool in_stock = 7;
+  // Defaults to "US".
+  string ships_to = 8;
+  // Defaults to 90 days from now; at most 90 days.
+  google.protobuf.Timestamp until = 9;
+  // Optional attribute filters, as in SearchProductsRequest: a size, a color, "women", "men", or "unisex", "new" or
+  // "secondhand", and a minimum number of reviews. They're part of the search, so identical watches still share one.
+  string size = 10;
+  string color = 11;
+  string gender = 12;
+  string condition = 13;
+  int32 min_reviews = 14;
+}
+
+message CreateFilterWatchResponse {
+  FilterWatch watch = 1;
+  // What matches today, cheapest first. These don't alert later unless they get cheaper.
+  repeated FilterMatch matches = 2;
+}
+
+message ListFilterWatchesRequest {
+  bool include_inactive = 1;
+}
+
+message ListFilterWatchesResponse {
+  repeated FilterWatch watches = 1;
+}
+
+message GetFilterWatchMatchesRequest {
+  string watch_id = 1;
+}
+
+message GetFilterWatchMatchesResponse {
+  FilterWatch watch = 1;
+  // Cheapest first; dismissed matches are left out.
+  repeated FilterMatch matches = 2;
+}
+
+message DismissFilterMatchRequest {
+  string idempotency_key = 1;
+  string watch_id = 2;
+  // "prd_...": the watch never mentions this product again.
+  string product_id = 3;
+}
+
+message DismissFilterMatchResponse {
+  FilterWatch watch = 1;
+}
+
+message CancelFilterWatchRequest {
+  string idempotency_key = 1;
+  string watch_id = 2;
+}
+
+message CancelFilterWatchResponse {
+  FilterWatch watch = 1;
+}

@@ -279,7 +279,7 @@ export function shopCommands(program: Command): void {
     .description('Price watches (a confirm link when a product hits your price) and filter watches (alerts for new matches to a search)');
   watch
     .command('price <product...>')
-    .description('Watch a product (checked every 15 minutes, up to 90 days)')
+    .description('Watch a product (checked hourly for up to 30 days; every 15 minutes, up to 90 days, with yaaa Plus)')
     .requiredOption('--below <usd>', 'alert at or below this price, in stock')
     .option('--variant <variant>', 'only this variant')
     .option('--until <date>', 'stop watching after this date (YYYY-MM-DD)')
@@ -298,7 +298,7 @@ export function shopCommands(program: Command): void {
     });
   watch
     .command('search <query...>')
-    .description('Watch a search across stores (checked every 6 hours, up to 90 days): alerts for new matches, price drops, restocks')
+    .description('Watch a search across stores (checked every 12 hours for up to 30 days; every 3 hours, up to 90 days, with yaaa Plus): alerts for new matches, price drops, restocks')
     .option('--store <domain>', 'only this store (leave out to watch every store)')
     .option('--min <usd>', 'lowest price')
     .option('--max <usd>', 'highest price')

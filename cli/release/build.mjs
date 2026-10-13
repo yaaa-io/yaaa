@@ -158,7 +158,8 @@ for (const platform of platforms) {
   const nodeTar = join(cache, `${nodeName}.tar.gz`);
   if (!existsSync(nodeTar)) {
     log(`downloading Node ${NODE_VERSION} for ${platform}`);
-    run('curl', ['--proto', '=https', '--tlsv1.2', '-fsSL', '-o', nodeTar, `https://nodejs.org/dist/v${NODE_VERSION}/${nodeName}.tar.gz`]);
+    // Retries: a dropped connection to nodejs.org shouldn't fail a release build or CI.
+    run('curl', ['--proto', '=https', '--tlsv1.2', '-fsSL', '--retry', '4', '--retry-all-errors', '--retry-delay', '2', '-o', nodeTar, `https://nodejs.org/dist/v${NODE_VERSION}/${nodeName}.tar.gz`]);
   }
   if (sha256(nodeTar) !== node.tarballs[platform]) {
     rmSync(nodeTar);

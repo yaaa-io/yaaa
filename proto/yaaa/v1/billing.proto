@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package yaaa.v1;
+
+import "google/protobuf/timestamp.proto";
+import "yaaa/v1/common.proto";
+
+// yaaa Plus billing through Stripe (#121). Payment happens on Stripe's pages: these return links for the person to
+// open in a browser. When billing isn't set up on the server, both return INVALID_ARGUMENT with metadata
+// feature=plus and status=coming_soon. The plan changes once Stripe confirms the payment, a few seconds after
+// checkout; GetAccount's plan and plan_usage show it.
+service BillingService {
+  // `yaaa plus`: a Stripe Checkout link that starts yaaa Plus, monthly or yearly. Sales tax is added from the billing
+  // address, and a promotion code can be entered there. CONFLICT (metadata reason=already_plus) when the account has
+  // Plus already: changes go through CreateBillingPortal.
+  rpc CreatePlusCheckout(CreatePlusCheckoutRequest) returns (CreatePlusCheckoutResponse);
+  // A link to Stripe's billing portal: switch monthly/yearly, update the card, see invoices, or cancel (Plus lasts to
+  // the end of the paid period). NOT_FOUND (metadata reason=no_subscription) when the account never subscribed.
+  rpc CreateBillingPortal(CreateBillingPortalRequest) returns (CreateBillingPortalResponse);
+}
+
+enum BillingInterval {
+  BILLING_INTERVAL_UNSPECIFIED = 0;
+  BILLING_INTERVAL_MONTHLY = 1;
+  BILLING_INTERVAL_YEARLY = 2;
+}
+
+message CreatePlusCheckoutRequest {
+  string idempotency_key = 1;
+  // Monthly when unspecified.
+  BillingInterval interval = 2;
+}
+
+message CreatePlusCheckoutResponse {
+  // Stripe Checkout. Give it to the person to open; they pay there.
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // "plus".
+  string plan = 3;
+  PlusPrice price = 4;
+}
+
+message PlusPrice {
+  // Before tax, which Stripe adds from the billing address.
+  Money amount = 1;
+  // "monthly" or "yearly".
+  string interval = 2;
+}
+
+message CreateBillingPortalRequest {}
+
+message CreateBillingPortalResponse {
+  // Stripe's billing portal for this account. Open it straight away: it works once, for a short time.
+  string url = 1;
+}

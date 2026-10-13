@@ -4,6 +4,7 @@ import { timestampDate } from '@bufbuild/protobuf/wkt';
 import type { DescService } from '@bufbuild/protobuf';
 import { AccountService } from './gen/yaaa/v1/account_pb.js';
 import { AuthService } from './gen/yaaa/v1/auth_pb.js';
+import { BillingService } from './gen/yaaa/v1/billing_pb.js';
 import { DevService } from './gen/yaaa/v1/dev_pb.js';
 import { EventService } from './gen/yaaa/v1/event_pb.js';
 import { HealthService } from './gen/yaaa/v1/health_pb.js';
@@ -15,7 +16,7 @@ import { CliError, Exit } from './errors.js';
 import { apiOrigin, type Credentials, type ConfigStore } from './config.js';
 import { platformName } from './platform.js';
 
-export const VERSION = '0.1.9';
+export const VERSION = '0.1.10';
 
 export interface Clients {
   apiUrl: string;
@@ -26,6 +27,7 @@ export interface Clients {
   watches: Client<typeof WatchService>;
   restocks: Client<typeof RestockService>;
   account: Client<typeof AccountService>;
+  billing: Client<typeof BillingService>;
   events: Client<typeof EventService>;
   dev: Client<typeof DevService>;
   /** A valid access token, refreshing it first if it's about to expire. */
@@ -176,6 +178,7 @@ export function connect(opts: { apiUrl: string; profile: string; store: ConfigSt
       watches: c(WatchService),
       restocks: c(RestockService),
       account: c(AccountService),
+      billing: c(BillingService),
       events: c(EventService),
       dev: c(DevService),
     };

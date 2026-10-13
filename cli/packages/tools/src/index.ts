@@ -292,7 +292,15 @@ export const MCP_INSTRUCTIONS =
   'Every purchase ends with a confirm link: give it to the user word for word. They open it and pay the store in its own ' +
   'checkout. Never open, fetch, or complete a confirm link yourself.';
 
-/** MCP tool definitions over `ops`. Inputs mirror the CLI flags. */
+/**
+ * MCP tool definitions over `ops`. Inputs mirror the CLI flags.
+ *
+ * Shopping only: finding, buying, watching, restocking, limits and alerts. Account and billing commands (`yaaa plus`,
+ * `yaaa plus manage`, recovery keys, the desk, passkeys) are deliberately not tools (#121): starting a subscription is
+ * the person's decision, made in their own terminal or when they ask their agent, and a tool an agent can call
+ * unprompted makes that too easy to get wrong. The plan and what's in use are in the CLI: `yaaa plus status --json`
+ * and `yaaa whoami --json`.
+ */
 export const tools = [
   {
     name: 'products_search',
@@ -372,7 +380,7 @@ export const tools = [
       product: z.string(),
       below: z.string(),
       variant: z.string().optional(),
-      until: z.string().optional().describe('YYYY-MM-DD; defaults to 90 days'),
+      until: z.string().optional().describe('YYYY-MM-DD; defaults to the longest the plan allows: 30 days, or 90 with yaaa Plus'),
       idempotency_key: z.string().optional(),
     },
     run: (c: Clients, i: { product: string; below: string; variant?: string; until?: string; idempotency_key?: string }) =>
@@ -393,7 +401,8 @@ export const tools = [
   {
     name: 'watches_search_create',
     description:
-      'Watch a search across every store: yaaa re-runs it every 6 hours for up to 90 days and alerts the user when a new ' +
+      'Watch a search across every store: yaaa re-runs it every 12 hours for up to 30 days (every 3 hours, up to 90 days, ' +
+      'with yaaa Plus) and alerts the user when a new ' +
       'product matches, one gets at least 5% or $5 cheaper, or one is back in stock. Nothing is bought: the user picks a ' +
       'match and you quote it with purchases_buy. Confirm the words and filters with the user first. Returns what matches today.',
     input: {
@@ -404,7 +413,7 @@ export const tools = [
       min_rating: z.number().min(0).max(5).optional(),
       in_stock: z.boolean().optional(),
       ships_to: z.string().length(2).optional().describe('2-letter country code; default US'),
-      until: z.string().optional().describe('YYYY-MM-DD; defaults to 90 days'),
+      until: z.string().optional().describe('YYYY-MM-DD; defaults to the longest the plan allows: 30 days, or 90 with yaaa Plus'),
       size: z.string().optional(),
       color: z.string().optional(),
       gender: z.enum(['women', 'men', 'unisex']).optional(),

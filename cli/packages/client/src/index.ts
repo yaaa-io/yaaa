@@ -1,5 +1,6 @@
 export * from './gen/yaaa/v1/account_pb.js';
 export * from './gen/yaaa/v1/auth_pb.js';
+export * from './gen/yaaa/v1/billing_pb.js';
 export * from './gen/yaaa/v1/common_pb.js';
 export * from './gen/yaaa/v1/dev_pb.js';
 export * from './gen/yaaa/v1/errors_pb.js';

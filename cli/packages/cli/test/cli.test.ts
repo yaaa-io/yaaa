@@ -44,6 +44,7 @@ describe('exit codes', () => {
 
   it('maps typed error details to the fixed exit codes', () => {
     expect(toYaaaError(withDetail(ErrorDetail_Reason.LIMIT_EXCEEDED))).toEqual({ reason: 'LIMIT_EXCEEDED', message: 'detail message', metadata: { limit: 'monthly' }, exit: Exit.limits });
+    expect(toYaaaError(withDetail(ErrorDetail_Reason.PLAN_LIMIT))).toMatchObject({ reason: 'PLAN_LIMIT', exit: Exit.limits });
     expect(toYaaaError(withDetail(ErrorDetail_Reason.STORE_UNSUPPORTED)).exit).toBe(Exit.conflict);
     expect(toYaaaError(withDetail(ErrorDetail_Reason.NOT_FOUND, Code.NotFound)).exit).toBe(Exit.notFound);
     expect(toYaaaError(withDetail(ErrorDetail_Reason.UNAVAILABLE, Code.Unavailable)).exit).toBe(Exit.retryable);

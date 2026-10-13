@@ -3,6 +3,7 @@ syntax = "proto3";
 package yaaa.v1;
 
 import "google/protobuf/timestamp.proto";
+import "yaaa/v1/common.proto";
 
 // Phase 1 accounts are anonymous: `yaaa init` creates one with no sign-up. Linking a
 // Shop account is optional and only adds saved preferences and member discounts.
@@ -36,10 +37,28 @@ message Account {
   google.protobuf.Timestamp created_at = 2;
   // Empty unless a Shop account is linked.
   string shop_email = 3;
-  // "free" or "paid".
+  // The plan stored for the account: "free" or "plus" (yaaa Plus). plan_usage.plan also says "new" in an account's
+  // first day.
   string plan = 4;
   // Whether a recovery key is set (the key itself is never returned again).
   bool has_recovery_key = 5;
+  // What the plan allows and how much is in use. Set by GetAccount only.
+  PlanUsage plan_usage = 6;
+  // The account's yaaa Plus subscription; unset when it never subscribed. Set by GetAccount only.
+  PlusSubscription plus = 7;
+}
+
+// A yaaa Plus subscription as Stripe last described it (#121). Account.plan says whether it gives Plus.
+message PlusSubscription {
+  // Stripe's status: "active", "past_due" (a renewal payment failed and is being retried; Plus stays on for 7 days),
+  // "canceled", "unpaid", "incomplete", "incomplete_expired", "trialing" or "paused".
+  string status = 1;
+  // "monthly" or "yearly".
+  string interval = 2;
+  // When the paid period ends: the next renewal or, with cancel_at_period_end, when Plus ends.
+  google.protobuf.Timestamp renews_at = 3;
+  // Cancelled in the billing portal: Plus lasts until renews_at, then ends.
+  bool cancel_at_period_end = 4;
 }
 
 message CreateRecoveryKeyRequest {

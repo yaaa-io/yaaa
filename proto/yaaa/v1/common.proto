@@ -72,3 +72,28 @@ message StoreOffer {
   bool available = 4;
   string url = 5;
 }
+
+// An account's plan, what it allows, and how much of it is in use (yaaa Plus, #121).
+message PlanUsage {
+  // "new" (a free account's first day, until it has a passkey, a confirmed alert email, or a confirmed purchase),
+  // "free", or "plus" (yaaa Plus).
+  string plan = 1;
+  // Running now (active or triggered).
+  PlanAllowance price_watches = 2;
+  PlanAllowance filter_watches = 3;
+  // Active or paused.
+  PlanAllowance restocks = 4;
+  // Quotes asked for today (yaaa buy, Quote this on the desk), since 00:00 UTC.
+  PlanAllowance quotes_today = 5;
+  // How often price watches are checked.
+  int32 price_check_minutes = 6;
+  // How often filter watches re-run their search.
+  int32 filter_check_minutes = 7;
+  // The longest a watch can run.
+  int32 longest_watch_days = 8;
+}
+
+message PlanAllowance {
+  int32 used = 1;
+  int32 limit = 2;
+}

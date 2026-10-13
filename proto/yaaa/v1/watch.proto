@@ -12,7 +12,8 @@ service WatchService {
   rpc ListPriceWatches(ListPriceWatchesRequest) returns (ListPriceWatchesResponse);
   rpc CancelPriceWatch(CancelPriceWatchRequest) returns (CancelPriceWatchResponse);
 
-  // Filter watches: a saved search (the same words and filters as SearchProducts) re-run across stores every 6 hours.
+  // Filter watches: a saved search (the same words and filters as SearchProducts) re-run across stores every 12 hours
+  // (every 3 with yaaa Plus).
   // An alert ("watch.matched") lists what's new: products the watch hasn't seen, ones at least 5% or $5 cheaper,
   // or ones back in stock. Nothing is quoted until the buyer picks one (BuyNow).
   rpc CreateFilterWatch(CreateFilterWatchRequest) returns (CreateFilterWatchResponse);
@@ -42,6 +43,7 @@ message PriceWatch {
   Variant variant = 4;
   Money target = 5;
   Money current_price = 6;
+  // How often the owner's plan checks it: 60 on new and free accounts, 15 with yaaa Plus.
   int32 check_interval_minutes = 7;
   google.protobuf.Timestamp ends_at = 8;
   google.protobuf.Timestamp last_checked_at = 9;
@@ -80,7 +82,8 @@ message CreatePriceWatchRequest {
   string variant = 5;
   // Alert when the price is at or below this.
   Money below = 6;
-  // Defaults to 90 days from now.
+  // Defaults to the plan's longest watch from now: 30 days on new and free accounts, 90 with yaaa Plus. Later than
+  // that is refused (REASON_PLAN_LIMIT on new and free accounts).
   google.protobuf.Timestamp until = 7;
 }
 
@@ -125,6 +128,7 @@ message FilterWatch {
   double min_rating = 7;
   bool in_stock = 8;
   string ships_to = 9;
+  // How often the owner's plan re-runs it: 720 on new and free accounts, 180 with yaaa Plus.
   int32 check_interval_minutes = 10;
   google.protobuf.Timestamp ends_at = 11;
   google.protobuf.Timestamp last_checked_at = 12;
@@ -164,7 +168,8 @@ message CreateFilterWatchRequest {
   bool in_stock = 7;
   // Defaults to "US".
   string ships_to = 8;
-  // Defaults to 90 days from now; at most 90 days.
+  // Defaults to the plan's longest watch from now: 30 days on new and free accounts, 90 with yaaa Plus. Later than
+  // that is refused (REASON_PLAN_LIMIT on new and free accounts).
   google.protobuf.Timestamp until = 9;
   // Optional attribute filters, as in SearchProductsRequest: a size, a color, "women", "men", or "unisex", "new" or
   // "secondhand", and a minimum number of reviews. They're part of the search, so identical watches still share one.

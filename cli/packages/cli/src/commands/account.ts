@@ -24,6 +24,7 @@ import {
 } from '@yaaa/client';
 import { run, type GlobalOpts } from '../context.js';
 import { box, c } from '../output.js';
+import { planLine, planRows, plusLine } from '../views.js';
 import { askHidden, interactive, needsTerminal, readStdin } from '../terminal.js';
 import { clean } from '../sanitize.js';
 import { key } from '@yaaa/tools';
@@ -306,7 +307,9 @@ export function accountCommands(program: Command): void {
           box('yaaa account', [
             ['account', c.key(clean(r.account?.accountId))],
             ['profile', profile],
-            ['plan', clean(r.account?.plan)],
+            ['plan', planLine(r.account?.planUsage) || clean(r.account?.plan)],
+            ...(r.account?.plus ? ([['plus', plusLine(r.account.plus)]] as Array<[string, string]>) : []),
+            ...planRows(r.account?.planUsage),
             ['shop', clean(r.account?.shopEmail) || c.dim('not linked (optional)')],
           ]),
         );

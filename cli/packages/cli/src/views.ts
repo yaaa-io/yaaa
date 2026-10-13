@@ -6,6 +6,9 @@ import {
   WatchStatus,
   type FilterMatch,
   type FilterWatch,
+  type PlanUsage,
+  type PlusPrice,
+  type PlusSubscription,
   type PriceHistory,
   type PriceWatch,
   type Product,
@@ -291,4 +294,56 @@ export function prefsView(p: {
   ];
   if (rows.length === 0) return c.dim('No preferences yet. Set one with `yaaa config prefs set size.shoes 10`.');
   return box('shopping preferences · this device', rows);
+}
+
+/** "free · price checks hourly, filter watches every 12 hours, watches up to 30 days" */
+export function planLine(u: PlanUsage | undefined): string {
+  if (!u?.plan) return '';
+  const every = (m: number) => (m % 60 === 0 ? (m === 60 ? 'hourly' : `every ${m / 60} hours`) : `every ${m} minutes`);
+  return `${planName(u.plan)} ${c.dim(`· price checks ${every(u.priceCheckMinutes)}, filter watches ${every(u.filterCheckMinutes)}, watches up to ${u.longestWatchDays} days`)}`;
+}
+
+export const planName = (plan: string): string => (plan === 'plus' ? 'yaaa Plus' : plan === 'new' ? 'new (first day)' : plan === 'free' ? 'free' : clean(plan));
+
+/** What's in use of the plan's allowances: "3 of 5". */
+export function planRows(u: PlanUsage | undefined): Array<[string, string]> {
+  if (!u?.plan) return [];
+  const of = (a: PlanUsage['priceWatches']) => (a ? `${a.used} of ${a.limit}` : '');
+  return [
+    ['price watches', of(u.priceWatches)],
+    ['filter watches', of(u.filterWatches)],
+    ['restocks', of(u.restocks)],
+    ['quotes today', of(u.quotesToday)],
+  ];
+}
+
+/** "$6.99/month", "$59/year": the price from the API, never written here. */
+export function plusPriceLine(p: PlusPrice | undefined): string {
+  if (!p) return '—';
+  const m = p?.amount;
+  if (!m?.amount) return '—';
+  const amount = clean(m.amount).replace(/\.00$/, '');
+  const money = m.currencyCode === 'USD' || !m.currencyCode ? `$${amount}` : `${amount} ${clean(m.currencyCode)}`;
+  const per = p.interval === 'monthly' ? '/month' : p.interval === 'yearly' ? '/year' : p.interval ? ` ${clean(p.interval)}` : '';
+  return `${money}${per}`;
+}
+
+const SUBSCRIPTION_WORD: Record<string, string> = {
+  active: 'active',
+  trialing: 'active (trial)',
+  past_due: 'past due: a renewal payment failed and is being retried',
+  canceled: 'ended',
+  unpaid: 'unpaid',
+  incomplete: 'payment not finished',
+  incomplete_expired: 'payment not finished (expired)',
+  paused: 'paused',
+};
+
+/** A yaaa Plus subscription in a line: "active · monthly · renews Nov 13, 2026". */
+export function plusLine(p: PlusSubscription): string {
+  const status = SUBSCRIPTION_WORD[p.status] ?? clean(p.status);
+  const live = p.status === 'active' || p.status === 'trialing' || p.status === 'past_due';
+  const when = !live || !p.renewsAt ? '' : p.cancelAtPeriodEnd ? `ends ${fmtDate(p.renewsAt)}` : `renews ${fmtDate(p.renewsAt)}`;
+  const line = [status, clean(p.interval), when].filter(Boolean).join(' · ');
+  return p.status === 'past_due' || p.cancelAtPeriodEnd ? c.warn(line) : line;
 }

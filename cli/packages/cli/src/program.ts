@@ -4,6 +4,7 @@ import { accountCommands } from './commands/account.js';
 import { alertCommands } from './commands/alerts.js';
 import { devCommands, showDevCommands } from './commands/dev.js';
 import { mcpCommand } from './commands/mcp.js';
+import { plusCommands } from './commands/plus.js';
 import { shopCommands } from './commands/shop.js';
 import { updateCommand } from './commands/update.js';
 
@@ -28,6 +29,7 @@ export function buildProgram(): Command {
     .exitOverride();
 
   accountCommands(program);
+  plusCommands(program);
   shopCommands(program);
   alertCommands(program);
   mcpCommand(program);

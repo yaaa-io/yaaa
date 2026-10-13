@@ -27,6 +27,8 @@ const byReason: Record<number, [string, number]> = {
   [ErrorDetail_Reason.INVALID_ARGUMENT]: ['INVALID_ARGUMENT', Exit.usage],
   [ErrorDetail_Reason.UNAUTHENTICATED]: ['UNAUTHENTICATED', Exit.auth],
   [ErrorDetail_Reason.LIMIT_EXCEEDED]: ['LIMIT_EXCEEDED', Exit.limits],
+  // The plan's limit (watches, restocks, quotes a day, watch length); metadata.upgrade names `yaaa plus` when it helps.
+  [ErrorDetail_Reason.PLAN_LIMIT]: ['PLAN_LIMIT', Exit.limits],
   [ErrorDetail_Reason.CONFLICT]: ['CONFLICT', Exit.conflict],
   [ErrorDetail_Reason.IDEMPOTENCY_KEY_REUSED]: ['IDEMPOTENCY_KEY_REUSED', Exit.conflict],
   [ErrorDetail_Reason.NOT_FOUND]: ['NOT_FOUND', Exit.notFound],

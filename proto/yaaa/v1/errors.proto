@@ -30,6 +30,11 @@ message ErrorDetail {
     REASON_PRICE_OR_STOCK_CHANGED = 10;
     // Exit 5: this yaaa is older than the API supports (metadata: version, min_version). Update yaaa.
     REASON_CLIENT_OUTDATED = 11;
+    // Exit 4: the account's plan allows no more of something (active price watches, filter watches or restocks,
+    // quotes today, or a watch this long). Metadata: reason=plan_limit, resource ("price_watches", "filter_watches",
+    // "restocks", "quotes_per_day", "watch_days"), limit, plan ("new", "free", "plus"), and upgrade="yaaa plus" when
+    // yaaa Plus raises it.
+    REASON_PLAN_LIMIT = 12;
   }
   Reason reason = 1;
   string message = 2;

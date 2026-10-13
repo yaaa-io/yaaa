@@ -139,4 +139,6 @@ message StatusItem {
 
 message GetStatusResponse {
   repeated StatusItem items = 1;
+  // The account's plan, its limits, and how much is in use.
+  PlanUsage plan_usage = 2;
 }

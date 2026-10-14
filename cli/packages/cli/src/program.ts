@@ -19,6 +19,7 @@ export function buildProgram(): Command {
     .description('yaaa (Yet Another AI Agent) by NxisAI: buy from online stores at retail, in your name. Every purchase ends with a confirm link.')
     .version(VERSION, '--version')
     .option('--json', 'print the exact API response as JSON (for agents)')
+    .option('--pretty', 'with --json, indent it for reading')
     // Developer options, like `yaaa dev`: they always work, but help lists them only for the local profile or YAAA_DEV=1,
     // so buyers and their agents don't point yaaa at another API by mistake.
     .addOption(new Option('--profile <name>', 'default, dev, or local (also YAAA_PROFILE)').hideHelp(!showDevCommands()))

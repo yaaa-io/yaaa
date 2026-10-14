@@ -247,3 +247,13 @@ describe('search attributes and paging', () => {
     expect(calls.length).toBe(1);
   });
 });
+
+describe('--json text', () => {
+  it('is one compact line, and indented only with --pretty', async () => {
+    const { jsonText } = await import('../src/output.js');
+    const v = { a: 1, b: { c: [2, 3] } };
+    expect(jsonText(v)).toBe('{"a":1,"b":{"c":[2,3]}}');
+    expect(jsonText(v, true)).toBe(JSON.stringify(v, null, 2));
+    expect(JSON.parse(jsonText(v, true))).toEqual(v);
+  });
+});

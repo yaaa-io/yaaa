@@ -4,6 +4,7 @@ import { setImagePreference } from './images.js';
 
 export interface GlobalOpts {
   json?: boolean;
+  pretty?: boolean;
   profile?: string;
   apiUrl?: string;
   idempotencyKey?: string;
@@ -22,7 +23,7 @@ export interface Ctx {
 export function context(g: GlobalOpts): Ctx {
   const store = new ConfigStore();
   const profile = g.profile ?? process.env.YAAA_PROFILE ?? 'default';
-  const out = output(Boolean(g.json));
+  const out = output(Boolean(g.json), Boolean(g.pretty));
   let apiUrl = '';
   try {
     apiUrl = (g.apiUrl ?? process.env.YAAA_API_URL ?? store.profile(profile).api_url).replace(/\/$/, '');

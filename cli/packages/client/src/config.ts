@@ -37,7 +37,11 @@ export function apiOrigin(url: string): string {
   try {
     return new URL(url).origin;
   } catch {
-    return url.trim().replace(/\/+$/, '').toLowerCase();
+    // Not a URL: compare it as given, without trailing slashes (a loop, not a regex, so a long run of them stays cheap).
+    const s = url.trim();
+    let end = s.length;
+    while (end > 0 && s[end - 1] === '/') end--;
+    return s.slice(0, end).toLowerCase();
   }
 }
 

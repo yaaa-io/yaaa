@@ -80,22 +80,30 @@ export interface Out {
   fail(e: unknown): never;
 }
 
-export function output(json: boolean): Out {
+/**
+ * --json text: one compact line, as agents and scripts read it (indentation would only cost them tokens), or indented
+ * with --pretty for a person. `yaaa events --follow` writes JSON lines itself, always compact.
+ */
+export function jsonText(value: unknown, pretty = false): string {
+  return pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value);
+}
+
+export function output(json: boolean, pretty = false): Out {
   const write = (s: string) => process.stdout.write(s.endsWith('\n') ? s : s + '\n');
   return {
     json,
     result(r, rich) {
-      write(json ? JSON.stringify(asJson(r)) : rich());
+      write(json ? jsonText(asJson(r), pretty) : rich());
     },
     data(obj, rich) {
-      write(json ? JSON.stringify(obj) : rich());
+      write(json ? jsonText(obj, pretty) : rich());
     },
     note(s) {
       if (!json) process.stderr.write(s + '\n');
     },
     fail(e): never {
       const err: YaaaError = toYaaaError(e);
-      if (json) write(JSON.stringify({ error: errorJson(err), exit_code: err.exit }));
+      if (json) write(jsonText({ error: errorJson(err), exit_code: err.exit }, pretty));
       else {
         process.stderr.write(`${c.err('✗')} ${cleanLines(err.message)}\n`);
         if (err.reason === 'CLIENT_OUTDATED') process.stderr.write(`Update with: ${c.key(updateHint(installation()))}\n`);

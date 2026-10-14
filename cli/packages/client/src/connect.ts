@@ -16,7 +16,7 @@ import { CliError, Exit } from './errors.js';
 import { apiOrigin, type Credentials, type ConfigStore } from './config.js';
 import { platformName } from './platform.js';
 
-export const VERSION = '0.1.11';
+export const VERSION = '0.1.12';
 
 export interface Clients {
   apiUrl: string;

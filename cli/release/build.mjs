@@ -27,13 +27,11 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { build } from 'esbuild';
+import { buildApp, cliRoot, cliVersion, writePackageJson } from './app.mjs';
 import { PLATFORMS } from './platforms.mjs';
 import { pinnedKeys, publicKeyOf, readPrivateKey, sha256, signBytes, verifyBytes, writeNewKey } from './signing.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const cliRoot = resolve(here, '..');
-const pkgDir = join(cliRoot, 'packages/cli');
 const repo = resolve(cliRoot, '..');
 
 /** The Node runtime yaaa ships (the current LTS), with its pinned hashes. */
@@ -60,16 +58,9 @@ const platforms = args.platforms.split(',').map((p) => (p.trim() === 'host' ? ho
 for (const p of platforms) if (!PLATFORMS.includes(p)) throw new Error(`unknown platform ${p}; use ${PLATFORMS.join(', ')}`);
 const out = resolve(args.out);
 
-const cliPkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
-const version = cliPkg.version;
-// The CLI reports VERSION (@yaaa/client); `yaaa update` compares it with releases/latest, so the two must agree.
-const reported = readFileSync(join(cliRoot, 'packages/client/src/connect.ts'), 'utf8').match(/export const VERSION = '([^']+)'/)?.[1];
-if (reported !== version)
-  throw new Error(`packages/cli/package.json is ${version} but VERSION in packages/client/src/connect.ts is ${reported}; make them match`);
+const version = cliVersion();
 const run = (cmd, argv, opts = {}) => execFileSync(cmd, argv, { stdio: ['ignore', 'inherit', 'inherit'], ...opts });
 const log = (s) => console.log(`release: ${s}`);
-
-if (!existsSync(join(pkgDir, 'dist/main.js'))) throw new Error('build the CLI first: pnpm build');
 
 // 0. The signing key, before anything is built, and the keys the CLI and the installer will trust.
 const pinned = await pinnedKeys();
@@ -101,49 +92,11 @@ const work = join(repo, '.dev/release-work');
 rmSync(work, { recursive: true, force: true });
 mkdirSync(work, { recursive: true });
 
-// 1. The app, the same on every platform: one bundled file, plus what has to stay on disk.
+// 1. The app, the same on every platform: one bundled file, plus what has to stay on disk (release/app.mjs).
 const app = join(work, 'app');
 log(`bundling yaaa ${version}`);
-await build({
-  entryPoints: [join(pkgDir, 'dist/main.js')],
-  outfile: join(app, 'dist/yaaa.mjs'),
-  bundle: true,
-  platform: 'node',
-  format: 'esm',
-  target: 'node22',
-  minify: true,
-  keepNames: true,
-  legalComments: 'external',
-  // node-notifier runs helper apps that ship inside its package (terminal-notifier on macOS), so it stays a real
-  // package next to the bundle.
-  external: ['node-notifier'],
-  // Some dependencies are CommonJS and call require(); give the ES module bundle one.
-  banner: { js: "import { createRequire as __yaaaRequire } from 'node:module'; const require = __yaaaRequire(import.meta.url);" },
-  // The keys `yaaa update` trusts, and whether it may download over http (only a --dev-key build); see src/release.ts.
-  define: { __YAAA_RELEASE_KEYS__: JSON.stringify(trusted), __YAAA_ALLOW_HTTP__: JSON.stringify(dev) },
-  logLevel: 'warning',
-});
-cpSync(join(pkgDir, 'skills'), join(app, 'skills'), { recursive: true });
-cpSync(join(pkgDir, 'assets'), join(app, 'assets'), { recursive: true });
-// node-notifier at the exact versions in release/bundle/package-lock.json, so every release build installs the same
-// files.
-const bundleDir = join(here, 'bundle');
-const notifierVersion = JSON.parse(readFileSync(join(bundleDir, 'package.json'), 'utf8')).dependencies['node-notifier'];
-const wantMajor = cliPkg.dependencies['node-notifier'].replace(/^[\^~]/, '').split('.')[0];
-if (notifierVersion.split('.')[0] !== wantMajor)
-  throw new Error(`release/bundle pins node-notifier ${notifierVersion}, but packages/cli wants ${cliPkg.dependencies['node-notifier']}; update release/bundle`);
-cpSync(join(bundleDir, 'package.json'), join(app, 'package.json'));
-cpSync(join(bundleDir, 'package-lock.json'), join(app, 'package-lock.json'));
-log(`installing node-notifier ${notifierVersion}`);
-run('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund', '--loglevel=error'], { cwd: app });
-writeFileSync(
-  join(app, 'package.json'),
-  JSON.stringify({ name: '@yaaa/cli', version, type: 'module', private: true, dependencies: { 'node-notifier': notifierVersion } }, null, 2) + '\n',
-);
-// Windows-only helpers aren't needed on macOS or Linux.
-for (const dir of ['snoreToast', 'notifu']) rmSync(join(app, 'node_modules/node-notifier/vendor', dir), { recursive: true, force: true });
-rmSync(join(app, 'package-lock.json'), { force: true });
-rmSync(join(app, 'node_modules/.package-lock.json'), { force: true });
+const { notifier } = await buildApp(app, { trusted, allowHttp: dev, log });
+writePackageJson(app, { name: '@yaaa/cli', version, type: 'module', private: true, dependencies: { 'node-notifier': notifier } });
 
 // 2. Per platform: Node's runtime + the app, as yaaa-<v>-<platform>/{bin/node, bin/yaaa, app/}.
 const cache = join(repo, '.dev/cache/node');

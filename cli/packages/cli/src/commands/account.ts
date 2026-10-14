@@ -30,7 +30,7 @@ import { clean } from '../sanitize.js';
 import { key } from '@yaaa/tools';
 
 import { SKILLS, detectAgents, installSkills, rememberSkillsDir, skillsCurrent } from '../skills.js';
-import { compareVersions, installation, updateHint } from '../installation.js';
+import { compareVersions, installation, NPM_PACKAGE, updateHint, yaaaOnPath, type Installation } from '../installation.js';
 export { skillsDir } from '../paths.js';
 export { detectAgents };
 
@@ -211,11 +211,15 @@ export function accountCommands(program: Command): void {
         }
         // Without a terminal, the person makes their recovery key themselves: say so, for the agent to pass on.
         const recoveryKeyNext = created && !recoveryKey ? (interactive(out.json) ? 'Couldn’t make a recovery key now. Run `yaaa recovery-key` to get one.' : RECOVERY_KEY_IN_TERMINAL) : undefined;
-        out.data({ account_id: creds.account_id, created, restored, recovery_key: recoveryKey, recovery_key_next: recoveryKeyNext, profile, api_url: apiUrl, skills }, () =>
+        // Run once through npx, yaaa isn't installed, but the skills (and the notifier) call `yaaa`.
+        const inst = installation();
+        const installNext = inst.kind === 'npm' && inst.npx ? `This yaaa ran through npx, so it isn't installed, and your agents' skills run \`yaaa\`. Install it: npm install -g ${NPM_PACKAGE}` : undefined;
+        out.data({ account_id: creds.account_id, created, restored, recovery_key: recoveryKey, recovery_key_next: recoveryKeyNext, install_next: installNext, profile, api_url: apiUrl, skills }, () =>
           [
             `${c.ok('✓')} ${created ? 'Created' : restored ? 'Restored' : 'Using'} yaaa account ${c.key(creds!.account_id)} ${c.dim(`(${profile} · ${apiUrl})`)}`,
             ...(recoveryKey ? [recoveryKeyView(recoveryKey)] : []),
             ...(recoveryKeyNext ? [c.warn(recoveryKeyNext)] : []),
+            ...(installNext ? [c.warn(installNext)] : []),
             skills.length
               ? skills.map((s) => `${c.ok('✓')} Installed ${s.files.length} skill${s.files.length === 1 ? '' : 's'} for ${s.agent}`).join('\n')
               : isWsl()
@@ -373,6 +377,8 @@ export function accountCommands(program: Command): void {
         const minCli = 'h' in health ? health.h.minCliVersion : '';
         const cliOk = !minCli || compareVersions(VERSION, minCli) >= 0;
         const platform = platformName();
+        const inst = installation();
+        const onPath = yaaaOnPath();
         const report = {
           version: VERSION,
           platform,
@@ -385,12 +391,17 @@ export function accountCommands(program: Command): void {
           agents,
           skills_current: skillVersionOk,
           cli: { version: VERSION, min_version: minCli || undefined, ok: cliOk },
+          install: { by: installedBy(inst), on_path: onPath.map((p) => p.path) },
         };
         // In WSL, a notifier set up anyway (systemd) can't reach the Windows desktop.
         const wslNotifier = platform === 'linux-wsl' && existsSync(join(homedir(), '.config', 'systemd', 'user', 'yaaa-notify.service'));
         out.data(report, () =>
           [
             c.dim(`yaaa ${VERSION} · ${platform === 'linux-wsl' ? 'Windows (WSL)' : platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : platform}`),
+            c.dim(`installed with ${installedBy(inst)}`),
+            ...(onPath.length > 1
+              ? [c.warn(`· ${onPath.length} yaaa commands on PATH; ${onPath[0]!.path} runs, not ${onPath.slice(1).map((p) => p.path).join(', ')}. Remove the one you don't use.`)]
+              : []),
             ...(wslNotifier ? [c.warn("· desktop notifications don't reach Windows from WSL: use `yaaa notify email` or `yaaa notify discord`")] : []),
             `${health.ok ? c.ok('✓') : c.err('✗')} API ${apiUrl} ${'h' in health ? c.dim(`${health.h.environment} ${health.h.version} · ${latency} ms`) : c.err(health.error)}`,
             ...('h' in health ? health.h.dependencies.map((d) => `  ${d.ok ? c.ok('✓') : c.err('✗')} ${d.name} ${c.dim(`${d.latencyMs} ms`)}`) : []),
@@ -408,6 +419,20 @@ export function accountCommands(program: Command): void {
         else if (!account.ok) process.exitCode = Exit.auth;
       });
     });
+}
+
+/** How this yaaa was installed, as doctor says it. */
+function installedBy(i: Installation): string {
+  switch (i.kind) {
+    case 'installer':
+      return 'the installer';
+    case 'homebrew':
+      return 'Homebrew';
+    case 'npm':
+      return i.npx ? 'npx' : 'npm';
+    case 'source':
+      return 'a source checkout';
+  }
 }
 
 function toPlain(h: { status: number; version: string; environment: string; dependencies: Array<{ name: string; ok: boolean; detail: string; latencyMs: bigint }> }) {

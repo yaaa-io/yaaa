@@ -58,3 +58,13 @@ jobs:
           env -i HOME=$RUNNER_TEMP PATH=/usr/bin:/bin $RUNNER_TEMP/bin/yaaa --help >/dev/null
           v=$(cat ../dist/release/releases/latest)
           env -i HOME=$RUNNER_TEMP PATH=/usr/bin:/bin $RUNNER_TEMP/bin/yaaa update --to "$v" --json
+      # The package npm publishes (#184), built, packed and installed from its tarball as a person would, then run.
+      - name: npm package (build, pack, install from the tarball, run)
+        working-directory: cli
+        run: |
+          node release/npm.mjs --out ../dist/npm
+          (cd ../dist/npm && npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP")
+          npm install -g --prefix "$RUNNER_TEMP/npm" --ignore-scripts --no-audit --no-fund "$RUNNER_TEMP"/yaaa-io-cli-*.tgz
+          export YAAA_HOME="$RUNNER_TEMP/npm-home" YAAA_NO_UPDATE_CHECK=1
+          test "$("$RUNNER_TEMP/npm/bin/yaaa" --version)" = "$(node -p "require('./packages/cli/package.json').version")"
+          "$RUNNER_TEMP/npm/bin/yaaa" --help >/dev/null

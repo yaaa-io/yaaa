@@ -1,0 +1,42 @@
+# Installs and tests the formula on each change, on the platforms it supports. Written by cli/release/formula.mjs in
+# yaaa-io/yaaa; edit it there.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@main
+      - name: Audit
+        run: brew audit --strict --online --formula yaaa-io/tap/yaaa
+      - name: Install
+        run: brew install --formula yaaa-io/tap/yaaa
+      - name: Test
+        run: brew test yaaa-io/tap/yaaa
+      - name: Run it
+        env:
+          YAAA_NO_UPDATE_CHECK: "1"
+        run: |
+          export YAAA_HOME="$RUNNER_TEMP/yaaa-home"
+          v=$(yaaa --version)
+          # yaaa knows Homebrew installed it: it says to update with brew, not with yaaa update.
+          yaaa update --check --json | tee update.json
+          grep -q '"how":"brew upgrade yaaa"' update.json
+          # From 0.1.12, yaaa doctor says so too. It exits non-zero here (no account), which is expected.
+          if [ "$(printf '%s\n' 0.1.12 "$v" | sort -V | head -1)" = 0.1.12 ]; then
+            { yaaa doctor --json || true; } | tee doctor.json
+            grep -q '"by":"Homebrew"' doctor.json
+          fi

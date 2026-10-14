@@ -1,0 +1,112 @@
+name: publish
+
+# On each release tag, once that release is live on yaaa.io: the npm package (@yaaa-io/cli) and the Homebrew formula
+# (yaaa-io/homebrew-tap). Both are built from this tag's commit, so they match the installer's release. Each job runs in
+# its own environment, which needs approval, and holds no long-lived npm token: npm trusts this workflow (trusted
+# publishing) and records where each version came from (provenance).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: wait for the release on yaaa.io
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: v
+        name: The tag, the CLI's version and yaaa.io agree
+        run: |
+          v=$(node -p "require('./cli/packages/cli/package.json').version")
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
+            echo "the tag is $GITHUB_REF_NAME but cli/packages/cli/package.json is $v"; exit 1
+          fi
+          # The release reaches yaaa.io a few minutes after this tag; publish nothing until it has.
+          for _ in $(seq 1 90); do
+            if curl -fsS -o /dev/null "https://yaaa.io/releases/$v/manifest.json.sig"; then
+              echo "version=$v" >> "$GITHUB_OUTPUT"; echo "yaaa $v is live on yaaa.io"; exit 0
+            fi
+            sleep 30
+          done
+          echo "yaaa $v isn't on yaaa.io after 45 minutes"; exit 1
+
+  npm:
+    name: npm (@yaaa-io/cli)
+    needs: release
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # trusted publishing and provenance
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Build the package
+        working-directory: cli
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          node release/npm.mjs --out ../dist/npm
+      - name: Publish
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          # Trusted publishing needs npm 11.5.1 or newer.
+          npm install -g npm@^11.5.1 --no-fund --no-audit
+          if npm view "@yaaa-io/cli@$VERSION" version >/dev/null 2>&1; then
+            echo "@yaaa-io/cli@$VERSION is already on npm"; exit 0
+          fi
+          npm publish ./dist/npm --provenance --access public
+
+  homebrew:
+    name: Homebrew (yaaa-io/homebrew-tap)
+    needs: release
+    runs-on: ubuntu-latest
+    environment: homebrew
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: yaaa-io/homebrew-tap
+          path: tap
+          # A deploy key that can write to the tap and nothing else.
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      # The pinned release keys come from the built CLI (release/signing.mjs), so the formula and `yaaa update` trust
+      # the same keys.
+      - name: Write the formula from the release's signed manifest
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          (cd cli && pnpm install --frozen-lockfile && pnpm build)
+          node cli/release/formula.mjs --version "$VERSION" --tap tap
+      - name: Commit it to the tap
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        working-directory: tap
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "the tap already has yaaa $VERSION"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "yaaa $VERSION"
+          git push origin HEAD:main

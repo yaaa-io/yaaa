@@ -2,7 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { ErrorDetailSchema, ErrorDetail_Reason } from './gen/yaaa/v1/errors_pb.js';
 import type { Product } from './gen/yaaa/v1/common_pb.js';
 
-/** The CLI's fixed exit codes. Agents branch on these; see site/public/agent.md. */
+/** The CLI's fixed exit codes. Agents branch on these; see https://yaaa.io/agent.md. */
 export const Exit = {
   ok: 0,
   unexpected: 1,

@@ -1,7 +1,7 @@
 {
   "name": "@yaaa/cli",
   "license": "Apache-2.0",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "yaaa: let the AI agent in your terminal buy from online stores at retail, in your name.",
   "type": "module",
   "bin": {

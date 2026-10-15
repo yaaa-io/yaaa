@@ -12,6 +12,8 @@ yaaa is in beta, for US-based Shopify stores that support agent checkout (UCP). 
 
 ```sh
 curl -fsSL https://yaaa.io/install | sh   # macOS and Linux; on Windows, inside WSL
+# or: brew install yaaa-io/tap/yaaa       # Homebrew, macOS and Linux
+# or: npm install -g @yaaa-io/cli         # with Node.js 22.12 or newer
 yaaa init                                 # an anonymous account (no sign-up), and the skills for your agents
 ```
 
@@ -48,6 +50,8 @@ pnpm build                    # generates the client from proto/, then builds
 pnpm test
 node packages/cli/dist/main.js --help
 ```
+
+Coding agents: [AGENTS.md](AGENTS.md) has the layout, conventions and safety rules.
 
 ## Contributing
 

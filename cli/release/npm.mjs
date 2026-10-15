@@ -13,18 +13,17 @@
  * Run `pnpm build` first.
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { chmodSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildApp, cliRoot, cliVersion, writePackageJson } from './app.mjs';
+import { npmReadme } from './readme.mjs';
 import { pinnedKeys } from './signing.mjs';
 
 export const NPM_NAME = '@yaaa-io/cli';
 /** What unpacked package may grow to before the check fails: a sudden jump means something got in by mistake. */
 const MAX_UNPACKED = 6e6;
 
-const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(cliRoot, '..');
 const { values: args } = parseArgs({ options: { out: { type: 'string', default: join(repo, 'dist/npm') } } });
 const out = resolve(args.out);
@@ -43,7 +42,8 @@ const { notifier } = await buildApp(out, { trusted: keys.real, log });
 chmodSync(join(out, 'dist/yaaa.mjs'), 0o755);
 cpSync(join(cliRoot, 'LICENSE'), join(out, 'LICENSE'));
 cpSync(join(cliRoot, 'NOTICE'), join(out, 'NOTICE'));
-cpSync(join(here, 'npm/README.md'), join(out, 'README.md'));
+// The README, with a table of this version's commands (release/readme.mjs).
+writeFileSync(join(out, 'README.md'), await npmReadme());
 writePackageJson(out, {
   name: NPM_NAME,
   version,

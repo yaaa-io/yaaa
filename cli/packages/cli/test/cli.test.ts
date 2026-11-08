@@ -46,9 +46,18 @@ describe('exit codes', () => {
     expect(toYaaaError(withDetail(ErrorDetail_Reason.LIMIT_EXCEEDED))).toEqual({ reason: 'LIMIT_EXCEEDED', message: 'detail message', metadata: { limit: 'monthly' }, exit: Exit.limits });
     expect(toYaaaError(withDetail(ErrorDetail_Reason.PLAN_LIMIT))).toMatchObject({ reason: 'PLAN_LIMIT', exit: Exit.limits });
     expect(toYaaaError(withDetail(ErrorDetail_Reason.STORE_UNSUPPORTED)).exit).toBe(Exit.conflict);
+    expect(toYaaaError(withDetail(ErrorDetail_Reason.BLOCKED_BY_ROBOTS))).toMatchObject({ reason: 'BLOCKED_BY_ROBOTS', exit: Exit.conflict });
     expect(toYaaaError(withDetail(ErrorDetail_Reason.NOT_FOUND, Code.NotFound)).exit).toBe(Exit.notFound);
     expect(toYaaaError(withDetail(ErrorDetail_Reason.UNAVAILABLE, Code.Unavailable)).exit).toBe(Exit.retryable);
     expect(toYaaaError(withDetail(ErrorDetail_Reason.UNAUTHENTICATED, Code.Unauthenticated)).exit).toBe(Exit.auth);
+  });
+
+  it('a missing scope exits like PERMISSION_DENIED (2), keeping the scope it names', () => {
+    const missing = new ConnectError('server message', Code.PermissionDenied, undefined, [
+      { desc: ErrorDetailSchema, value: create(ErrorDetailSchema, { reason: ErrorDetail_Reason.SCOPE_MISSING, message: 'needs shop:watch', metadata: { scope: 'shop:watch', reason: 'scope_missing' } }) },
+    ]);
+    expect(toYaaaError(missing)).toEqual({ reason: 'SCOPE_MISSING', message: 'needs shop:watch', metadata: { scope: 'shop:watch', reason: 'scope_missing' }, exit: Exit.usage });
+    expect(toYaaaError(new ConnectError('denied', Code.PermissionDenied)).exit).toBe(Exit.usage);
   });
 
   it('falls back to the gRPC code without a detail', () => {

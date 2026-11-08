@@ -16,6 +16,7 @@ import {
   CreateDeskLinkResponseSchema,
   Exit,
   GetAccountResponseSchema,
+  ListSessionsResponseSchema,
   PollShopLinkResponse_Status,
   toYaaaError,
   unknownApi,
@@ -23,7 +24,7 @@ import {
   wrongApi,
 } from '@yaaa/client';
 import { run, type GlobalOpts } from '../context.js';
-import { box, c } from '../output.js';
+import { box, c, fmtDate, fmtTime, table } from '../output.js';
 import { planLine, planRows, plusLine } from '../views.js';
 import { askHidden, interactive, needsTerminal, readStdin } from '../terminal.js';
 import { clean } from '../sanitize.js';
@@ -317,6 +318,41 @@ export function accountCommands(program: Command): void {
             ['shop', clean(r.account?.shopEmail) || c.dim('not linked (optional)')],
           ]),
         );
+      });
+    });
+
+  const sessions = program
+    .command('sessions')
+    .description('Devices, desk sessions, agent tokens and connected apps signed in to this account')
+    .action(async (_o, cmd: Command) => {
+      await run(g(cmd), async ({ clients, out }) => {
+        const r = await clients.auth.listSessions({});
+        out.result({ schema: ListSessionsResponseSchema, message: r }, () =>
+          [
+            table(
+              ['id', 'name', 'kind', 'scopes', 'last used', 'expires'],
+              r.sessions.map((s) => [
+                c.key(clean(s.sessionId)),
+                `${clean(s.name)}${s.current ? c.dim(' (this one)') : ''}`,
+                clean(s.kind),
+                s.kind === 'device' ? c.dim('everything') : s.scopes.map(clean).join(' '),
+                fmtTime(s.lastUsed ?? s.lastActive),
+                s.expiresAt ? fmtDate(s.expiresAt) : c.dim('never'),
+              ]),
+            ),
+            c.dim('`yaaa sessions revoke <id>` signs one out.'),
+          ].join('\n'),
+        );
+      });
+    });
+
+  sessions
+    .command('revoke <session_id>')
+    .description('Sign a device out, or revoke an agent token or app, at once')
+    .action(async (sessionId: string, _o, cmd: Command) => {
+      await run(g(cmd), async ({ clients, out }) => {
+        await clients.auth.revokeSession({ sessionId });
+        out.data({ revoked: sessionId }, () => `${c.ok('✓')} Revoked session ${clean(sessionId)}.`);
       });
     });
 

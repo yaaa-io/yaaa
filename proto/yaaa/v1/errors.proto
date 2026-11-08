@@ -35,6 +35,12 @@ message ErrorDetail {
     // "restocks", "quotes_per_day", "watch_days"), limit, plan ("new", "free", "plus"), and upgrade="yaaa plus" when
     // yaaa Plus raises it.
     REASON_PLAN_LIMIT = 12;
+    // Exit 5: the store's robots.txt asks automated agents not to read this page. Metadata: reason=robots_txt, store,
+    // url, retry=false. Don't retry or work around it; the person can open the url themselves.
+    REASON_BLOCKED_BY_ROBOTS = 13;
+    // Exit 2: the agent token or connected app wasn't given the scope this call needs ("shop:read", "shop:watch" or
+    // "shop:buy"). Metadata: scope, reason=scope_missing. Tell the person which scope to add. gRPC PERMISSION_DENIED.
+    REASON_SCOPE_MISSING = 14;
   }
   Reason reason = 1;
   string message = 2;

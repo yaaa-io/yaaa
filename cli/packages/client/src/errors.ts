@@ -35,8 +35,12 @@ const byReason: Record<number, [string, number]> = {
   [ErrorDetail_Reason.UNAVAILABLE]: ['UNAVAILABLE', Exit.retryable],
   [ErrorDetail_Reason.RATE_LIMITED]: ['RATE_LIMITED', Exit.retryable],
   [ErrorDetail_Reason.STORE_UNSUPPORTED]: ['STORE_UNSUPPORTED', Exit.conflict],
+  // The store's robots.txt asks agents not to read the page; metadata.url is the link for the person to open (#182).
+  [ErrorDetail_Reason.BLOCKED_BY_ROBOTS]: ['BLOCKED_BY_ROBOTS', Exit.conflict],
   [ErrorDetail_Reason.CLIENT_OUTDATED]: ['CLIENT_OUTDATED', Exit.conflict],
   [ErrorDetail_Reason.PRICE_OR_STOCK_CHANGED]: ['PRICE_OR_STOCK_CHANGED', Exit.conflict],
+  // An agent token or connected app without the scope the call needs; metadata.scope names it (as PERMISSION_DENIED).
+  [ErrorDetail_Reason.SCOPE_MISSING]: ['SCOPE_MISSING', Exit.usage],
 };
 
 const byCode: Partial<Record<Code, [string, number]>> = {
